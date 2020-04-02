@@ -1,0 +1,217 @@
+---
+title: 
+output:
+  pdf_document:
+    keep_tex: yes
+    latex_engine: xelatex
+  html_document:
+    df_print: paged
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(error = TRUE)
+```
+
+\pagenumbering{gobble}
+
+## Preliminaries  
+
+This appendix is the first of multiple appendices which present the code used to produce the results discussed in this document. There is a code appendix for each of the applicable chapters. This appendix presents the code used for the cosinor models chapter. 
+
+Firstly, the ```CircadianTools``` package was loaded. The count data (Laurasmappings) was read in and the CT18.4 column was removed. This column was removed as it is mostly zeroes due to a technical problem which occurred during the experiment. Any genes which showed zero activity for all readings were removed: as is customary. There were 91,311 genes in the dataset after removal. 
+
+```{r}
+library(CircadianTools)
+# Read in count data
+Laurasmappings <- read.csv(
+  "~/MEGA/Uni/Masters/Diss/Stats/Raw_Data/Laurasmappings.csv",
+  stringsAsFactors = FALSE)
+
+Laurasmappings$CT18.4 <- NULL # Remove column of zeroes
+Laurasmappings <- GeneClean(Laurasmappings) # Remove genes which show no activity
+nrow(Laurasmappings) # Print the number of genes in the reduced dataset
+```
+
+## Cosinor 24 Hour (Circadian) Period
+
+Cosinor models with 24 hour periods were fitted and F-tests were carried out on these models. The resultant p-values are saved alongside gene names in the ```cosinor.24``` object. The ```system.time``` function is used to show the speed of fitting cosinor models to all 91,311 genes.
+
+```{r, cache = TRUE}
+# Fit cosinor models with 24 hour period and calculate time taken. 
+system.time(cosinor.24 <- CosinorAnalysis(Laurasmappings, period = 24,
+                                          progress = FALSE, print = FALSE)
+            ) 
+```
+
+The p-values needed to be adjusted using a bonferroni correction due to the large number of genes being tested. After the adjustment, the genes which are significant at the 5% level were found.  
+
+```{r, cache = TRUE}
+# Apply bonferroni correction
+cosinor.24$pVal <- p.adjust(cosinor.24$pVal, method = "bonferroni") 
+# Sort by smallest p-value
+cosinor.24 <- cosinor.24[order(cosinor.24$pVal, decreasing = FALSE), ] 
+# Find genes significant at the 5% level
+sig.24 <- subset(cosinor.24, pVal <= 0.05)
+sig.24 # Print these genes
+```
+
+A FASTA file was created using the FastaSub function in ```CircadianTools```. This FASTA file was created by including only the sequences for the samples which were found to be significant with 24 hour cosinor models from a FASTA file which detailed the transcriptome of \textit{Talitrus saltaor}. This FASTA file was then `BLASTed' to search for proteins. 
+
+```{r}
+# Read in main FASTA file containing transcriptome
+main.fasta <- seqinr::read.fasta(
+  "~/MEGA/Uni/Masters/Diss/Stats/Raw_Data/JoesTranscriptomeMin300bp 2.fasta")
+
+# Create a FASTA file which only contains sequences for the samples which were
+# found to be significant with 24 hour cosinor models
+sig.24.fasta <- FastaSub(gene.names = sig.24$sample, fasta.file = main.fasta,
+         filename = "sig.24")
+```
+
+The below code saves plots of the cosinor models for these genes to a folder in the working directory called "cosinor_24".
+
+```{r, cache = TRUE}
+CosinorSignificantPlot(cosinor.24, Laurasmappings, number = nrow(sig.24),
+                       print = FALSE, save = TRUE, path = "cosinor_24")
+```
+
+After viewing the plots, four plots were chosen for inclusion in the main document and were saved as print quality png files. 
+
+```{r, cache = FALSE}
+gene.names <- c("comp99801_c1_seq1", "comp102333_c0_seq2", "comp98599_c2_seq1",
+                "comp98714_c0_seq2" )
+
+# Change the size of the text in the plots
+txt.size <- ggplot2::theme(text = ggplot2::element_text(size = 7))
+
+
+p1 <- CosinorPlot(gene.names[1], Laurasmappings) + txt.size
+p2 <- CosinorPlot(gene.names[2], Laurasmappings) + txt.size 
+p3 <- CosinorPlot(gene.names[3], Laurasmappings) + txt.size
+p4 <- CosinorPlot(gene.names[4], Laurasmappings) + txt.size
+
+p <- gridExtra::grid.arrange(p1, p2, p3, p4, ncol = 2 , nrow = 2)
+ggplot2::ggsave("cosinor_24.png", plot = p, width = 12, height = 10,
+                  units = "in")
+```
+
+The residuals for these significant cosinor models were plotted and saved to a folder in the working directory called "residuals".
+
+```{r, cache = TRUE}
+genes.sig <- GeneSub(sig.24, Laurasmappings) 
+CosinorResidualDatasetPlot(genes.sig, print = FALSE, save = TRUE,
+                           path = "residuals")
+```
+
+After investigating the plots of the residuals, some genes appeared to have sinusoidal residuals whilst others did not. As a result, the plots of residuals for 6 genes were were saved for use as a figure. 3 of the genes were judged to have sinusoidal residuals whilst the remaining three were judged to not have this attribute.
+
+```{r, cache = FALSE}
+p1 <- CosinorResidualPlot("comp23718_c0_seq1", Laurasmappings) + txt.size
+p2 <- CosinorResidualPlot("comp71855_c0_seq1", Laurasmappings) + txt.size
+p3 <- CosinorResidualPlot("comp98714_c0_seq2", Laurasmappings) + txt.size 
+p4 <- CosinorResidualPlot("comp98599_c2_seq1", Laurasmappings) + txt.size 
+p5 <- CosinorResidualPlot("comp101772_c1_seq2", Laurasmappings) + txt.size 
+p6 <- CosinorResidualPlot("comp102333_c0_seq9", Laurasmappings) + txt.size 
+
+arranged <- gridExtra::grid.arrange(p1,p4,p2,p5,p3,p6, ncol=2)
+ggplot2::ggsave("residuals.png", arranged, width=12, height=10, units="in",
+                dpi=300)
+```
+
+### Investigating Genes with Sinusoidal Residuals
+
+The three genes which were judged to have sinsoidal characteristics were then fitted with cosinor models with both circadian and circatidal terms. ANOVA was used to see if the addition of these extra terms resulted in a signficantly better fit. 
+
+#### Comp23718_c0_seq1
+
+```{r}
+MultiCosinorTest("comp23718_c0_seq1", Laurasmappings, period.1 = 24, 
+                 period.2 = 12.4 )
+```
+
+#### Comp71855_c0_seq1
+
+```{r}
+MultiCosinorTest("comp71855_c0_seq1", Laurasmappings, period.1 = 24,
+                 period.2 = 12.4)
+```
+
+
+#### Comp98714_c0_seq2
+
+```{r}
+MultiCosinorTest("comp98714_c0_seq2", Laurasmappings, period.1 = 24,
+                 period.2 = 12.4)
+```
+
+### Investigating Genes With Non-Sinusoidal Residuals
+
+The Three genes which were judged to not have sinusodial residuals were then investigated. 
+
+
+#### Comp98599_c2_seq1
+
+```{r}
+MultiCosinorTest("comp98599_c2_seq1", Laurasmappings, period.1 = 24,
+                 period.2 = 12.4)
+```
+
+#### Comp101772_c1_seq2
+
+```{r}
+MultiCosinorTest("comp101772_c1_seq2", Laurasmappings, period.1 = 24,
+                 period.2 = 12.4)
+```
+
+#### Comp102333_c0_seq9
+
+```{r}
+MultiCosinorTest("comp102333_c0_seq9", Laurasmappings, period.1 = 24,
+                 period.2 = 12.4)
+```
+
+## Cosinor 12.4 (Circatidal) Period
+
+Cosinor models with periods of 12.4 hours were then be fitted. The 25 best fitting models were then found.  
+
+```{r, cache = TRUE}
+cosinor.12.4 <- CosinorAnalysis(Laurasmappings, period = 12.4, progress = FALSE,
+                                print= FALSE )
+cosinor.12.4 <- cosinor.12.4[order(cosinor.12.4$pVal, decreasing = FALSE), ]
+sig.12.4 <- cosinor.12.4[1:25, ]
+sig.12.4
+```
+
+A FASTA file was created using the FastaSub function in ```CircadianTools``` similar to the signficant circadian genes was used for a BLAST search.  
+
+```{r}
+sig.12.4.fasta <- FastaSub(gene.names = sig.12.4$sample, fasta.file = main.fasta,
+         filename = "sig.24")
+```
+
+Plots of the best fitting genes were plotted and saved to the ```cosinor_12.4``` folder in the working directory so they could be judged for circatidal characteristics.
+
+```{r, cache = TRUE}
+CosinorSignificantPlot(cosinor.12.4, Laurasmappings, period = 12.4 ,number = 25,
+                       print = FALSE, save = TRUE, path = "cosinor_12.4")
+```
+
+After viewing the plots, 4 were chosen for inclusion in the main document. 
+
+```{r, cache = FALSE}
+p1 <- CosinorPlot("comp97780_c0_seq11", Laurasmappings, period=12.4) + 
+        ggplot2::ggtitle("comp97780_c0_seq11, unadjusted P-Value: 1x10^-4")  + 
+        txt.size
+p2 <- CosinorPlot("comp5046_c0_seq2", Laurasmappings, period=12.4) + 
+        ggplot2::ggtitle("comp5046_c0_seq2, unadjusted P-Value: 8x10^-4") + 
+        txt.size
+p3 <- CosinorPlot("comp53017_c0_seq2", Laurasmappings, period=12.4) + 
+        ggplot2::ggtitle("comp53017_c0_seq2, unadjusted P-Value: 1x10^-4") + 
+        txt.size
+p4 <- CosinorPlot("comp84247_c0_seq1", Laurasmappings, period=12.4) + 
+        ggplot2::ggtitle("comp84247_c0_seq1, unadjusted P-Value: 3x10^-4") + 
+        txt.size
+arranged <- gridExtra::grid.arrange(p1,p2,p3,p4, ncol=2)
+ggplot2::ggsave("cosinor_12.4.png", arranged,width=12, height=10, units="in",
+                dpi=300)
+```

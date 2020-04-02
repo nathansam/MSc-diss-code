@@ -1,0 +1,130 @@
+---
+title:
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(error = TRUE)
+```
+
+\pagenumbering{gobble}
+
+## Preliminaries  
+
+First, the ```CircadianTools``` package was loaded. 
+
+```{r, cache=TRUE}
+library(CircadianTools)
+```
+
+In order to keep this appendix concise, only the code used to produce the correlation networks included in the main document will be included. The below code can be easily expanded to include all of the correlation networks which were visualised (which can still be found at [users.aber.ac.uk/nsc/cytoscape.html](users.aber.ac.uk/nsc/cytoscape.html)).
+
+
+## Gene correlation network
+
+The below code generates the file read into Cytoscape to create the correlation networks between genes. 
+
+```{r, cache=TRUE}
+# Read in the cluster dataset
+t.filter <- read.csv(
+  "~/MEGA/Uni/Masters/Diss/Stats/R Markdown/filtering/t_filter.csv",
+  stringsAsFactors=FALSE)
+
+
+# Find lagged correlations (returns an object in short form format)
+cor.lag.1 <- CorAnalysisDataset(t.filter, lag = 1, save = FALSE)
+# Convert to long form format
+cyto.cor.lag.1 <- CytoscapeFile(cor.lag.1, save = FALSE)
+# Filter out weak correlations and write data as a csv file
+filtered <- CytoscapeFilter(cyto.cor.lag.1, threshold = 0.95, save = TRUE,
+                            filename = "a.agglom.cor.lag1")
+# Clear objects in the workspace to reduce RAM usage
+rm(list=ls())
+```
+
+
+## Cluster correlation networks
+
+For each visualisation, the required clustering results from the clustering appendix were read in. The cluster profiles were then found and correlated with an applied lag. The results were initally in a short form format so were converted to a long form format as this is what Cytoscape expects. The files were then filtered to include correlations greater than 0.95 or less that -0.95. The files were saved and objects in the workspace were then cleared in order to minimise RAM usage. 
+
+
+### ANOVA Filtered, Agglomerative Clustering, Absolute Correlation, Lag of 1
+
+```{r, cache=TRUE}
+# Read in the cluster dataset
+a.agglom.cor <- read.csv(
+  "~/MEGA/Uni/Masters/Diss/Stats/R Markdown/clustering/a_agglom_cor.csv",
+                         stringsAsFactors=FALSE)
+
+# Find lagged correlations (returns an object in short form format)
+cor.lag.1 <- CorAnalysisClusterDataset(a.agglom.cor, lag = 1, save = FALSE)
+# Convert to long form format
+cyto.cor.lag.1 <- CytoscapeFile(cor.lag.1, save = FALSE)
+# Filter out weak correlations and write data as a csv file
+filtered <- CytoscapeFilter(cyto.cor.lag.1, threshold = 0.95, save = TRUE,
+                            filename = "a.agglom.cor.lag1")
+# Clear objects in the workspace to reduce RAM usage
+rm(list=ls())
+```
+
+### ANOVA Filtered, DIANA Clustering, Absolute Correlation, Lag of 2
+
+```{r, cache=FALSE}
+# Read in the cluster dataset
+a.diana.cor <- read.csv(
+  "~/MEGA/Uni/Masters/Diss/Stats/R Markdown/clustering/a_diana_cor.csv",
+                         stringsAsFactors=FALSE)
+
+# Find lagged correlations (returns an object in short form format)
+cor.lag.2 <- CorAnalysisClusterDataset(a.diana.cor, lag = 2, save = FALSE)
+# Convert to long form format
+cyto.cor.lag.2 <- CytoscapeFile(cor.lag.2, save = FALSE)
+# Filter out weak correlations and write data as a csv file
+filtered <- CytoscapeFilter(cyto.cor.lag.2, threshold = 0.95, save = TRUE,
+                            filename = "a.diana.cor.lag2")
+# Clear objects in the workspace to reduce RAM usage
+rm(list=ls())
+```
+
+
+### ANOVA Filtered, PAM Clustering, Euclidean Distance, Lag of 2
+
+```{r, cache=TRUE}
+# Read in the cluster dataset
+a.pam.euc <- read.csv(
+  "~/MEGA/Uni/Masters/Diss/Stats/R Markdown/clustering/a_pam_euc.csv",
+                         stringsAsFactors=FALSE)
+
+# Find lagged correlations (returns an object in short form format)
+cor.lag.2 <- CorAnalysisClusterDataset(a.pam.euc, lag = 2, save = FALSE)
+# Convert to long form format
+cyto.cor.lag.2 <- CytoscapeFile(cor.lag.2, save = FALSE)
+# Filter out weak correlations and write data as a csv file
+filtered <- CytoscapeFilter(cyto.cor.lag.2, threshold = 0.95, save = TRUE,
+                            filename = "a.pam.euc.lag2")
+# Clear objects in the workspace to reduce RAM usage
+rm(list=ls())
+```
+
+### T-Test Filtered, Agglomerative Clustering, Euclidean distance, Lag of 1
+
+
+```{r, cache=TRUE}
+t.agglom.euc <- read.csv(
+  # Read in the cluster dataset
+  "~/MEGA/Uni/Masters/Diss/Stats/R Markdown/clustering/t_agglom_euc.csv",
+                         stringsAsFactors=FALSE)
+
+# Find lagged correlations (returns an object in short form format)
+cor.lag.1 <- CorAnalysisClusterDataset(t.agglom.euc, lag = 1, save = FALSE)
+# Convert to long form format
+cyto.cor.lag.1 <- CytoscapeFile(cor.lag.1, save = FALSE)
+# Filter out weak correlations and write data as a csv file
+filtered <- CytoscapeFilter(cyto.cor.lag.1, threshold = 0.95, save = TRUE,
+                            filename = "t.agglom.euc.lag1")
+# Clear objects in the workspace to reduce RAM usage
+rm(list=ls())
+```
+
+These files were then opened in Cytoscape and networks were produced. The Cytoscape session files can also be found alongside the other supporting files provided. 

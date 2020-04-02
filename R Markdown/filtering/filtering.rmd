@@ -1,0 +1,195 @@
+---
+title:
+output:
+  pdf_document:
+    keep_tex: yes
+  html_document:
+    df_print: paged
+---
+
+\pagenumbering{gobble}
+
+## Preliminaries  
+
+The initial set-up for filtering was similar to the Cosinor code appendix. The ```CircadianTools``` package was loaded. The count data (Laurasmappings) was read in and the CT18.4 column was removed due to this column showing no activity. Any genes which show zero activity for all readings were removed: as is customary.
+```{r}
+library(CircadianTools)
+Laurasmappings <- read.csv("~/MEGA/Uni/Masters/Diss/Stats/Raw_Data/Laurasmappings.csv",
+                           stringsAsFactors = FALSE) # Read in count data
+Laurasmappings$CT18.4 <- NULL # Remove column of zeroes
+Laurasmappings <- GeneClean(Laurasmappings) # Remove genes which show no activity
+```
+
+For this code appendix, an additional preliminary steps was taken: ```circadian.csv```, which contains the names of genes found to be circadian via BLAST, was read in. 
+
+```{r, cache = FALSE}
+circadian <- read.csv("~/MEGA/Uni/Masters/Diss/Stats/circadian.csv", sep="",
+                      stringsAsFactors=FALSE)
+```
+
+## ANOVA Filtering
+
+
+### Threshold of 5%
+
+Firstly, the genes were filtered using ANOVA with a signficance level of 5%.
+
+```{r, cache = FALSE}
+system.time(a.filter <- AnovaFilter(dataset = Laurasmappings, threshold = 0.05))
+
+anova.no <- nrow(a.filter) # Number of genes in the reduced dataset
+circadian.subset <- GeneSub(circadian, a.filter)
+circadian.no <- nrow(circadian.subset)
+
+
+
+cat(paste("There are", anova.no,
+          "genes in the dataset filtered via ANOVA with a threshold of 5%.\n",
+          circadian.no, "of the", nrow(circadian), 
+         "genes found to be circadian via BLAST are in the reduced dataset.\n
+         These genes are: \n")
+    )
+circadian.subset$sample
+```
+
+
+### Threshold of 2.5%
+
+As 11,186 genes is still too many genes for some computational methods, a threshold of 2.5% was considered. 
+
+```{r, cache = FALSE}
+system.time(a.filter <- AnovaFilter(dataset = Laurasmappings,
+                                    threshold = 0.025)
+            )
+anova.no <- nrow(a.filter) # Number of genes in the reduced dataset
+circadian.subset <- GeneSub(circadian, a.filter)
+circadian.no <- nrow(circadian.subset)
+
+
+
+cat(paste("There are", anova.no,
+          "genes in the dataset filtered via ANOVA with a threshold of 2.5%.\n",
+          circadian.no, "of the", nrow(circadian), 
+         "genes found to be circadian via BLAST are in the reduced dataset.\n
+         These genes are: \n")
+    )
+circadian.subset$sample
+```
+
+The reduced dataset was saved as a csv file for use in later chapters. 
+
+```{r, cache = FALSE}
+write.csv(a.filter,"a_filter.csv", row.names = FALSE )
+```
+
+## T-Test Filtering
+
+Filtering via t-tests, as presented in the main document was then used to filter the count data.
+
+
+```{r, cache = FALSE}
+system.time(t.filter <- TFilter(Laurasmappings, maxdifference = 1,
+                                minchanges = 2, psignificance = 0.05)
+            )
+
+
+circadian.subset <- GeneSub(circadian, t.filter)
+circadian.no <- nrow(circadian.subset)
+
+t.filter.no <- nrow(t.filter) # Number of genes in the reduced dataset
+circadian.no <- nrow(GeneSub(circadian, t.filter))
+
+cat(paste("There are",t.filter.no,
+          "genes in the dataset filtered via t-tests. \n",
+          circadian.no, "of the", nrow(circadian),
+         "genes found to be circadian via BLAST are in the reduced dataset.\n
+         These genes are: \n"))
+circadian.subset$sample
+
+
+```
+
+The reduced dataset was saved as a csv file for use in later chapters. 
+
+```{r, cache = FALSE}
+write.csv(t.filter,"t_filter.csv", row.names = FALSE )
+```
+
+
+### T-Test Experimentation
+
+As filtering by using the t-tests methood involves three important paramters, these parameters were each varied whilst fixing the other two in order to see the effect of varying the paramters. 
+
+#### p 
+
+```{r}
+p.values <- c(0.05, 0.025, 0.01)
+
+p.value.results <- data.frame()
+ for (i in p.values){
+  filtered <- TFilter(Laurasmappings, maxdifference = 1, minchanges = 2,
+                      psignificance = i)
+  
+  p.value.results <- rbind (p.value.results,
+                            data.frame(p = i, genecount = nrow(filtered)
+                                       )
+                            )
+}
+
+print(p.value.results)
+```
+
+
+#### Minimum Significant Changes
+
+```{r, cache = FALSE}
+changes <- 1 : 5
+
+sig.change.results <- data.frame()
+
+for (i in changes){
+  filtered <- TFilter(Laurasmappings, maxdifference = 1, minchanges = i,
+                      psignificance = 0.05)
+  sig.change.results <- rbind(sig.change.results,
+                              data.frame(min.changes = i,
+                                         genecount = nrow(filtered)
+                                         )
+                              )
+}
+
+print(sig.change.results)
+```
+
+
+#### Maximum Difference Between Signficant Changes
+```{r, cache = FALSE}
+max.diff <- 0 : 5
+
+max.diff.results <- data.frame()
+
+for (i in max.diff){
+  filtered <- TFilter(Laurasmappings, maxdifference = i, minchanges = 2,
+                      psignificance = 0.05)
+  max.diff.results <- rbind(max.diff.results,
+                            data.frame(max.diff = i,
+                                       genecount = nrow(filtered)
+                                       )
+                            )
+}
+
+
+print(max.diff.results)
+```
+
+## Comparing T-Test and ANOVA Filtering
+
+The number of genes found in both the ANOVA filtered and t-test filtered datasets were then found. 
+
+```{r, cache = FALSE}
+shared.no <- nrow(GeneSub(a.filter, t.filter))
+cat(paste( "There are", shared.no,
+           "genes which can be found in both reduced datasets.\n"))
+```
+
+
+

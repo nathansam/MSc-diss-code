@@ -1,0 +1,4 @@
+periodogram <- function() {
+    
+    
+}
